@@ -17,7 +17,7 @@ export interface DevBrowserClient {
    * Get LLM-friendly DOM tree for a page
    * Updates the server's selector map for the page
    */
-  getLLMTree: (name: string) => Promise<GetLLMTreeResponse>;
+  getLLMTree: (name: string) => Promise<string>;
   /**
    * Get CSS selector for an element by its index from the last getLLMTree call
    */
@@ -144,7 +144,7 @@ export async function connect(serverUrl: string): Promise<DevBrowserClient> {
       }
     },
 
-    async getLLMTree(name: string): Promise<GetLLMTreeResponse> {
+    async getLLMTree(name: string): Promise<string> {
       const res = await fetch(`${serverUrl}/pages/${encodeURIComponent(name)}/tree`, {
         method: "POST",
       });
@@ -153,7 +153,8 @@ export async function connect(serverUrl: string): Promise<DevBrowserClient> {
         throw new Error(`Failed to get LLM tree: ${await res.text()}`);
       }
 
-      return (await res.json()) as GetLLMTreeResponse;
+      const data = (await res.json()) as GetLLMTreeResponse;
+      return data.tree;
     },
 
     async getSelectorForID(name: string, index: number): Promise<string> {
