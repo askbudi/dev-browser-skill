@@ -17,6 +17,7 @@ export interface ConnectionManagerDeps {
 export class ConnectionManager {
   private ws: WebSocket | null = null;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private shouldMaintain = false;
   private logger: Logger;
   private onMessage: (message: ExtensionCommandMessage) => Promise<unknown>;
   private onDisconnect: () => void;
@@ -28,10 +29,37 @@ export class ConnectionManager {
   }
 
   /**
-   * Check if connected to relay.
+   * Check if WebSocket is open (may be stale if server crashed).
    */
   isConnected(): boolean {
     return this.ws?.readyState === WebSocket.OPEN;
+  }
+
+  /**
+   * Validate connection by checking if server is reachable.
+   * More reliable than isConnected() as it detects server crashes.
+   */
+  async checkConnection(): Promise<boolean> {
+    if (!this.isConnected()) {
+      return false;
+    }
+
+    // Verify server is actually reachable
+    try {
+      const response = await fetch("http://localhost:9222", {
+        method: "HEAD",
+        signal: AbortSignal.timeout(1000),
+      });
+      return response.ok;
+    } catch {
+      // Server unreachable - close stale socket
+      if (this.ws) {
+        this.ws.close();
+        this.ws = null;
+        this.onDisconnect();
+      }
+      return false;
+    }
   }
 
   /**
@@ -51,6 +79,7 @@ export class ConnectionManager {
    * Start maintaining connection (auto-reconnect).
    */
   startMaintaining(): void {
+    this.shouldMaintain = true;
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
@@ -64,10 +93,23 @@ export class ConnectionManager {
    * Stop connection maintenance.
    */
   stopMaintaining(): void {
+    this.shouldMaintain = false;
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
+  }
+
+  /**
+   * Disconnect from relay and stop maintaining connection.
+   */
+  disconnect(): void {
+    this.stopMaintaining();
+    if (this.ws) {
+      this.ws.close();
+      this.ws = null;
+    }
+    this.onDisconnect();
   }
 
   /**
@@ -160,7 +202,9 @@ export class ConnectionManager {
       this.logger.debug("Connection closed:", event.code, event.reason);
       this.ws = null;
       this.onDisconnect();
-      this.startMaintaining();
+      if (this.shouldMaintain) {
+        this.startMaintaining();
+      }
     };
 
     socket.onerror = (event: Event) => {

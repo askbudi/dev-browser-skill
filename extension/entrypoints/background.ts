@@ -9,6 +9,8 @@ import { createLogger } from "../utils/logger";
 import { TabManager } from "../services/TabManager";
 import { ConnectionManager } from "../services/ConnectionManager";
 import { CDPRouter } from "../services/CDPRouter";
+import { StateManager } from "../services/StateManager";
+import type { PopupMessage, StateResponse } from "../utils/types";
 
 export default defineBackground(() => {
   // Create connection manager first (needed for sendMessage)
@@ -16,6 +18,9 @@ export default defineBackground(() => {
 
   // Create logger with sendMessage function
   const logger = createLogger((msg) => connectionManager?.send(msg));
+
+  // Create state manager for persistence
+  const stateManager = new StateManager();
 
   // Create tab manager
   const tabManager = new TabManager({
@@ -35,6 +40,23 @@ export default defineBackground(() => {
     onMessage: (msg) => cdpRouter.handleCommand(msg),
     onDisconnect: () => tabManager.detachAll(),
   });
+
+  // Update badge to show active/inactive state
+  function updateBadge(isActive: boolean): void {
+    chrome.action.setBadgeText({ text: isActive ? "ON" : "" });
+    chrome.action.setBadgeBackgroundColor({ color: "#4CAF50" });
+  }
+
+  // Handle state changes
+  async function handleStateChange(isActive: boolean): Promise<void> {
+    await stateManager.setState({ isActive });
+    if (isActive) {
+      connectionManager.startMaintaining();
+    } else {
+      connectionManager.disconnect();
+    }
+    updateBadge(isActive);
+  }
 
   // Handle debugger events
   function onDebuggerEvent(
@@ -56,36 +78,43 @@ export default defineBackground(() => {
     tabManager.handleDebuggerDetach(tabId);
   }
 
-  // Handle extension icon click - toggle debugger attachment
-  async function onActionClicked(tab: chrome.tabs.Tab): Promise<void> {
-    if (!tab.id) {
-      logger.debug("No tab ID available");
-      return;
-    }
-
-    const tabInfo = tabManager.get(tab.id);
-
-    if (tabInfo?.state === "connected") {
-      // Disconnect
-      tabManager.detach(tab.id, true);
-    } else {
-      // Connect
-      try {
-        tabManager.set(tab.id, { state: "connecting" });
-        await connectionManager.ensureConnected();
-        await tabManager.attach(tab.id);
-      } catch (error) {
-        logger.error("Failed to connect:", error);
-        tabManager.set(tab.id, {
-          state: "error",
-          errorText: (error as Error).message,
-        });
+  // Handle messages from popup
+  chrome.runtime.onMessage.addListener(
+    (
+      message: PopupMessage,
+      _sender: chrome.runtime.MessageSender,
+      sendResponse: (response: StateResponse) => void
+    ) => {
+      if (message.type === "getState") {
+        (async () => {
+          const state = await stateManager.getState();
+          const isConnected = await connectionManager.checkConnection();
+          sendResponse({
+            isActive: state.isActive,
+            isConnected,
+          });
+        })();
+        return true; // Async response
       }
+
+      if (message.type === "setState") {
+        (async () => {
+          await handleStateChange(message.isActive);
+          const state = await stateManager.getState();
+          const isConnected = await connectionManager.checkConnection();
+          sendResponse({
+            isActive: state.isActive,
+            isConnected,
+          });
+        })();
+        return true; // Async response
+      }
+
+      return false;
     }
-  }
+  );
 
   // Set up event listeners
-  chrome.action.onClicked.addListener(onActionClicked);
 
   chrome.tabs.onRemoved.addListener((tabId) => {
     if (tabManager.has(tabId)) {
@@ -111,6 +140,11 @@ export default defineBackground(() => {
 
   logger.log("Extension initialized");
 
-  // Start connection manager - will auto-connect to relay and reconnect if disconnected
-  connectionManager.startMaintaining();
+  // Initialize from stored state
+  stateManager.getState().then((state) => {
+    updateBadge(state.isActive);
+    if (state.isActive) {
+      connectionManager.startMaintaining();
+    }
+  });
 });

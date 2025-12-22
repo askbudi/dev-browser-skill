@@ -75,3 +75,20 @@ export interface TargetInfo {
   url: string;
   attached?: boolean;
 }
+
+// Popup <-> Background messaging
+export interface GetStateMessage {
+  type: "getState";
+}
+
+export interface SetStateMessage {
+  type: "setState";
+  isActive: boolean;
+}
+
+export interface StateResponse {
+  isActive: boolean;
+  isConnected: boolean;
+}
+
+export type PopupMessage = GetStateMessage | SetStateMessage;
