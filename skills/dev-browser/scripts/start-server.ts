@@ -135,6 +135,7 @@ const server = await serve({
   headless: config.headless,
   cdpPort: config.cdpPort,
   profileDir,
+  cookies: config.cookies,
 });
 
 console.log(`Dev browser server started`);

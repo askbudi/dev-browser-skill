@@ -10,6 +10,7 @@ import type {
   ListPagesResponse,
   ServerInfoResponse,
 } from "./types";
+import { parseAllCookies, cookieSummary } from "./cookies.js";
 
 export type { ServeOptions, GetPageResponse, ListPagesResponse, ServerInfoResponse };
 
@@ -85,6 +86,15 @@ export async function serve(options: ServeOptions = {}): Promise<DevBrowserServe
     args: [`--remote-debugging-port=${cdpPort}`],
   });
   console.log("Browser launched with persistent profile...");
+
+  // Inject cookies before any pages are opened
+  if (options.cookies && options.cookies.length > 0) {
+    const cookies = parseAllCookies(options.cookies);
+    if (cookies.length > 0) {
+      await context.addCookies(cookies);
+      console.log(cookieSummary(cookies));
+    }
+  }
 
   // Get the CDP WebSocket endpoint from Chrome's JSON API (with retry for slow startup)
   const cdpResponse = await fetchWithRetry(`http://127.0.0.1:${cdpPort}/json/version`);

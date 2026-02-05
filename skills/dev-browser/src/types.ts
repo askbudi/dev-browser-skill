@@ -6,6 +6,8 @@ export interface ServeOptions {
   cdpPort?: number;
   /** Directory to store persistent browser profiles (cookies, localStorage, etc.) */
   profileDir?: string;
+  /** Raw --cookies argument strings to parse and inject at startup */
+  cookies?: string[];
 }
 
 export interface ViewportSize {
