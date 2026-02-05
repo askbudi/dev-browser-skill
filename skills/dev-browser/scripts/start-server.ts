@@ -1,6 +1,7 @@
 import { serve } from "@/index.js";
 import { parseArgs, resolveConfig, printHelp } from "@/cli.js";
 import { printStatusTable } from "@/instance-registry.js";
+import { findAvailablePort } from "@/port-selection.js";
 import { execSync } from "child_process";
 import { mkdirSync, existsSync, readdirSync } from "fs";
 import { join, dirname } from "path";
@@ -104,25 +105,24 @@ try {
   console.log("You may need to run: npx playwright install chromium");
 }
 
-// Check if server is already running on the target port
-console.log(`Checking for existing servers on port ${config.port}...`);
-try {
-  const res = await fetch(`http://localhost:${config.port}`, {
-    signal: AbortSignal.timeout(1000),
-  });
-  if (res.ok) {
-    console.log(`Server already running on port ${config.port}`);
-    process.exit(0);
-  }
-} catch {
-  // Server not running, continue to start
+// Port auto-selection: find an available port pair
+// If user explicitly set --cdp-port, skip auto-selection (just validate the pair)
+const explicitCdpPort = args.cdpPort !== undefined ? config.cdpPort : undefined;
+console.log(`Finding available port (requested: ${config.port})...`);
+
+const portResult = await findAvailablePort(config.port, explicitCdpPort);
+
+if (portResult.wasAutoSelected) {
+  console.log(`Server started on port ${portResult.port} (${portResult.requestedPort} was in use)`);
+} else {
+  console.log(`Port ${portResult.port} is available`);
 }
 
 // Clean up stale CDP port if HTTP server isn't running (crash recovery)
 try {
-  const pid = execSync(`lsof -ti:${config.cdpPort}`, { encoding: "utf-8" }).trim();
+  const pid = execSync(`lsof -ti:${portResult.cdpPort}`, { encoding: "utf-8" }).trim();
   if (pid) {
-    console.log(`Cleaning up stale Chrome process on CDP port ${config.cdpPort} (PID: ${pid})`);
+    console.log(`Cleaning up stale Chrome process on CDP port ${portResult.cdpPort} (PID: ${pid})`);
     execSync(`kill -9 ${pid}`);
   }
 } catch {
@@ -132,21 +132,26 @@ try {
 console.log(`Browser mode: ${config.headless ? "headless" : "headful"}`);
 console.log("Starting dev browser server...");
 const server = await serve({
-  port: config.port,
+  port: portResult.port,
   headless: config.headless,
-  cdpPort: config.cdpPort,
+  cdpPort: portResult.cdpPort,
   profileDir,
   cookies: config.cookies,
   label: config.label,
 });
 
 console.log(`Dev browser server started`);
-console.log(`  HTTP API: http://localhost:${config.port}`);
-console.log(`  CDP port: ${config.cdpPort}`);
+console.log(`  HTTP API: http://localhost:${portResult.port}`);
+console.log(`  CDP port: ${portResult.cdpPort}`);
 console.log(`  WebSocket: ${server.wsEndpoint}`);
 console.log(`  Tmp directory: ${tmpDir}`);
 console.log(`  Profile directory: ${profileDir}`);
 console.log(`  Label: ${config.label ?? process.cwd()}`);
+if (portResult.wasAutoSelected) {
+  console.log(
+    `  Note: Auto-selected port ${portResult.port} (${portResult.requestedPort} was in use)`
+  );
+}
 console.log(`\nReady`);
 console.log(`\nPress Ctrl+C to stop`);
 

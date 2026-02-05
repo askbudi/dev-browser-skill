@@ -12,6 +12,7 @@ import type {
 } from "./types";
 import { parseAllCookies, cookieSummary } from "./cookies.js";
 import { registerInstance, unregisterInstance, formatUptime } from "./instance-registry.js";
+import { acquireProfileLock, removeLock } from "./profile-lock.js";
 
 export type { ServeOptions, GetPageResponse, ListPagesResponse, ServerInfoResponse };
 
@@ -79,6 +80,9 @@ export async function serve(options: ServeOptions = {}): Promise<DevBrowserServe
 
   // Create directory if it doesn't exist
   mkdirSync(userDataDir, { recursive: true });
+
+  // Acquire profile lock to prevent concurrent access to the same profile directory
+  acquireProfileLock(userDataDir, port);
   console.log(`Using persistent browser profile: ${userDataDir}`);
 
   console.log("Launching browser with persistent context...");
@@ -270,6 +274,9 @@ export async function serve(options: ServeOptions = {}): Promise<DevBrowserServe
     } catch {
       // Context might already be closed
     }
+
+    // Release profile lock
+    removeLock(userDataDir);
 
     // Unregister from instance registry
     unregisterInstance(port);
