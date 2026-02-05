@@ -1,116 +1,169 @@
-<p align="center">
-  <img src="assets/header.png" alt="Dev Browser - Browser automation for Claude Code" width="100%">
-</p>
+# dev-browser-skill
 
-A browser automation plugin for [Claude Code](https://docs.anthropic.com/en/docs/claude-code) that lets Claude control your browser to test and verify your work as you develop.
+Browser automation framework for AI agents (Claude Code and others). Maintains persistent page state across script executions, provides ARIA accessibility snapshots for element discovery, and supports both standalone Chromium and Chrome extension modes.
 
-**Key features:**
+## Features
 
-- **Persistent pages** - Navigate once, interact across multiple scripts
-- **Flexible execution** - Full scripts when possible, step-by-step when exploring
-- **LLM-friendly DOM snapshots** - Structured page inspection optimized for AI
+- **Persistent pages** — Named pages survive across script executions; reconnect by name
+- **ARIA snapshots** — Accessibility tree with element refs for reliable interaction without brittle selectors
+- **Two modes** — Launch a fresh Chromium (standalone) or connect to user's real Chrome (extension)
+- **Cookie injection** — Pre-load auth tokens via `--cookies` in key-value, JSON, or Netscape file formats
+- **Multi-instance** — Run multiple servers with automatic port selection and profile locking
+- **Instance management** — `--status`, `--stop`, `--stop-all` for controlling running instances
+- **Headless by default** — Optimized for AI/CI workflows; opt into visible browser with `--headful`
 
-## Prerequisites
+## Quick Start
 
-- [Claude Code](https://docs.anthropic.com/en/docs/claude-code) CLI installed
-- [Node.js](https://nodejs.org) (v18 or later) with npm
-
-## Installation
-
-### Claude Code
-
-```
-/plugin marketplace add sawyerhood/dev-browser
-/plugin install dev-browser@sawyerhood/dev-browser
-```
-
-Restart Claude Code after installation.
-
-### Amp / Codex
-
-Copy the skill to your skills directory:
+### Install
 
 ```bash
-# For Amp: ~/.claude/skills | For Codex: ~/.codex/skills
-SKILLS_DIR=~/.claude/skills  # or ~/.codex/skills
-
-mkdir -p $SKILLS_DIR
-git clone https://github.com/sawyerhood/dev-browser /tmp/dev-browser-skill
-cp -r /tmp/dev-browser-skill/skills/dev-browser $SKILLS_DIR/dev-browser
-rm -rf /tmp/dev-browser-skill
+cd skills/dev-browser && npm install
 ```
 
-**Amp only:** Start the server manually before use:
+### Start Server
 
 ```bash
-cd ~/.claude/skills/dev-browser && npm install && npm run start-server
+# Headless (default)
+./skills/dev-browser/server.sh &
+
+# Headful (visible browser)
+./skills/dev-browser/server.sh --headful &
+
+# With cookies
+./skills/dev-browser/server.sh --cookies 'name=session;value=abc;domain=.example.com' &
+
+# Custom port
+./skills/dev-browser/server.sh --port 9224 &
 ```
 
-### Chrome Extension (Optional)
+Wait for the `Ready` message before running scripts.
 
-The Chrome extension allows Dev Browser to control your existing Chrome browser instead of launching a separate Chromium instance. This gives you access to your logged-in sessions, bookmarks, and extensions.
+### Run a Script
 
-**Installation:**
+```bash
+cd skills/dev-browser && npx tsx <<'EOF'
+import { connect, waitForPageLoad } from "@/client.js";
 
-1. Download `extension.zip` from the [latest release](https://github.com/sawyerhood/dev-browser/releases/latest)
-2. Unzip the file to a permanent location (e.g., `~/.dev-browser-extension`)
-3. Open Chrome and go to `chrome://extensions`
-4. Enable "Developer mode" (toggle in top right)
-5. Click "Load unpacked" and select the unzipped extension folder
+const client = await connect();
+const page = await client.page("example", { viewport: { width: 1920, height: 1080 } });
 
-**Using the extension:**
+await page.goto("https://example.com");
+await waitForPageLoad(page);
 
-1. Click the Dev Browser extension icon in Chrome's toolbar
-2. Toggle it to "Active" - this enables browser control
-3. Ask Claude to connect to your browser (e.g., "connect to my Chrome" or "use the extension")
-
-When active, Claude can control your existing Chrome tabs with all your logged-in sessions, cookies, and extensions intact.
-
-## Permissions
-
-To skip permission prompts, add to `~/.claude/settings.json`:
-
-```json
-{
-  "permissions": {
-    "allow": ["Skill(dev-browser:dev-browser)", "Bash(npx tsx:*)"]
-  }
-}
+console.log({ title: await page.title(), url: page.url() });
+await client.disconnect();
+EOF
 ```
 
-Or run with `claude --dangerously-skip-permissions` (skips all prompts).
+## CLI Flags
 
-## Usage
+| Flag                   | Description                                          |
+| ---------------------- | ---------------------------------------------------- |
+| `--help`, `-h`         | Show help and exit                                   |
+| `--headless`           | Headless mode (default)                              |
+| `--headful`            | Visible browser window                               |
+| `--port <n>`           | HTTP API port (default: 9222, auto-selects if busy)  |
+| `--cdp-port <n>`       | Chrome DevTools Protocol port (default: port+1)      |
+| `--profile-dir <path>` | Browser profile directory                            |
+| `--label <name>`       | Instance label (default: cwd)                        |
+| `--cookies <source>`   | Load cookies (repeatable); key-value, JSON, or @file |
+| `--status`             | List running instances                               |
+| `--stop <port>`        | Stop instance on port                                |
+| `--stop-all`           | Stop all instances                                   |
 
-Just ask Claude to interact with your browser:
+Priority: CLI flags > environment variables > defaults.
 
-> "Open localhost:3000 and verify the signup flow works"
+## Cookie Formats
 
-> "Go to the settings page and figure out why the save button isn't working"
+**Key-value:** `name=session;value=abc;domain=.example.com;path=/;secure;httpOnly;sameSite=Lax`
 
-## Benchmarks
+**JSON:** `{"name":"token","value":"xyz","domain":".api.com"}` or `[{...}, {...}]`
 
-| Method                  | Time    | Cost  | Turns | Success |
-| ----------------------- | ------- | ----- | ----- | ------- |
-| **Dev Browser**         | 3m 53s  | $0.88 | 29    | 100%    |
-| Playwright MCP          | 4m 31s  | $1.45 | 51    | 100%    |
-| Playwright Skill        | 8m 07s  | $1.45 | 38    | 67%     |
-| Claude Chrome Extension | 12m 54s | $2.81 | 80    | 100%    |
+**File reference:** `@cookies.json` (JSON) or `@cookies.txt` (Netscape/cURL tab-separated format)
 
-_See [dev-browser-eval](https://github.com/SawyerHood/dev-browser-eval) for methodology._
+Multiple `--cookies` flags merge; duplicate name+domain → last wins. Domain is required for key-value and JSON formats.
 
-### How It's Different
+## HTTP API
 
-| Approach                                                         | How It Works                                      | Tradeoff                                               |
-| ---------------------------------------------------------------- | ------------------------------------------------- | ------------------------------------------------------ |
-| [Playwright MCP](https://github.com/microsoft/playwright-mcp)    | Observe-think-act loop with individual tool calls | Simple but slow; each action is a separate round-trip  |
-| [Playwright Skill](https://github.com/lackeyjb/playwright-skill) | Full scripts that run end-to-end                  | Fast but fragile; scripts start fresh every time       |
-| **Dev Browser**                                                  | Stateful server + agentic script execution        | Best of both: persistent state with flexible execution |
+| Endpoint       | Method | Description                                              |
+| -------------- | ------ | -------------------------------------------------------- |
+| `/`            | GET    | Server info (mode, label, pid, port, uptime, page count) |
+| `/pages`       | GET    | List page names                                          |
+| `/pages`       | POST   | Create/get page (`{ name, viewport? }`)                  |
+| `/pages/:name` | DELETE | Close and unregister page                                |
 
-## License
+## Client API
 
-MIT
+```typescript
+import { connect, waitForPageLoad } from "@/client.js";
 
-## Author
+const client = await connect(); // default port 9222
+const client = await connect("http://localhost:9224"); // custom port
 
-[Sawyer Hood](https://github.com/sawyerhood)
+const page = await client.page("name"); // get or create page
+const page = await client.page("name", { viewport: { width: 1920, height: 1080 } });
+
+const pages = await client.list(); // list page names
+await client.close("name"); // close page
+await client.disconnect(); // disconnect (pages persist)
+
+const snapshot = await client.getAISnapshot("name"); // ARIA accessibility tree
+const element = await client.selectSnapshotRef("name", "e5"); // element by ref
+const info = await client.getServerInfo(); // server metadata
+```
+
+## Extension Mode
+
+Connect to user's existing Chrome browser for authenticated sessions.
+
+```bash
+cd skills/dev-browser && npm i && npm run start-extension &
+```
+
+Requires the [dev-browser Chrome extension](https://github.com/SawyerHood/dev-browser/releases). The client API is identical — scripts use `client.page("name")` the same way.
+
+## Multi-Instance Management
+
+```bash
+# Ports auto-select when default (9222) is occupied: 9224, 9226, ...
+./skills/dev-browser/server.sh &      # gets 9222
+./skills/dev-browser/server.sh &      # auto-selects 9224
+
+# Check running instances
+./skills/dev-browser/server.sh --status
+
+# Stop instances
+./skills/dev-browser/server.sh --stop 9222
+./skills/dev-browser/server.sh --stop-all
+```
+
+Profile directories are locked to prevent concurrent access. Orphaned Chrome processes from crashes are cleaned up automatically on startup.
+
+## Development
+
+```bash
+# Skill tests
+cd skills/dev-browser && npx vitest run
+
+# Extension tests
+cd extension && npx wxt prepare && npx vitest run
+
+# Format check
+npm run format:check
+
+# Format fix
+npm run format
+```
+
+## Architecture
+
+- `skills/dev-browser/src/index.ts` — Express HTTP server + Playwright browser management
+- `skills/dev-browser/src/client.ts` — Client API with ARIA snapshot support
+- `skills/dev-browser/src/cli.ts` — CLI argument parser
+- `skills/dev-browser/src/cookies.ts` — Cookie injection (key-value, JSON, Netscape)
+- `skills/dev-browser/src/instance-registry.ts` — Instance registry for --status/--stop
+- `skills/dev-browser/src/port-selection.ts` — Port auto-selection
+- `skills/dev-browser/src/profile-lock.ts` — Profile directory locking
+- `skills/dev-browser/src/relay.ts` — Hono WebSocket relay server (extension mode)
+- `skills/dev-browser/src/snapshot/` — ARIA accessibility tree generator
+- `extension/` — Chrome extension (WXT framework)

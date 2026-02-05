@@ -27,6 +27,72 @@ Launches a new Chromium browser in headless mode (no visible window) for fresh a
 
 Add `--headful` flag if user needs a visible browser window. **Wait for the `Ready` message before running scripts.**
 
+#### CLI Flags
+
+| Flag                   | Description                                             |
+| ---------------------- | ------------------------------------------------------- |
+| `--help`, `-h`         | Show help message and exit                              |
+| `--headless`           | Run in headless mode (default)                          |
+| `--headful`            | Run with visible browser window                         |
+| `--port <number>`      | HTTP API port (default: 9222, auto-selects if occupied) |
+| `--cdp-port <number>`  | Chrome DevTools Protocol port (default: port+1)         |
+| `--profile-dir <path>` | Custom browser profile directory                        |
+| `--label <name>`       | Label this instance (default: current directory)        |
+| `--cookies <source>`   | Load cookies at startup (repeatable, see below)         |
+| `--status`             | Show all running instances and exit                     |
+| `--stop <port>`        | Stop instance on given port                             |
+| `--stop-all`           | Stop all running instances                              |
+
+Configuration priority: CLI flags > environment variables > defaults.
+
+#### Pre-loading Cookies
+
+Use `--cookies` to inject cookies before any pages open. Useful for auth tokens and session cookies.
+
+**Key-value format:**
+
+```bash
+./skills/dev-browser/server.sh --cookies 'name=session;value=abc123;domain=.example.com' &
+```
+
+Optional fields: `path`, `expires` (Unix timestamp), `secure`, `httpOnly`, `sameSite` (Strict/Lax/None).
+
+**JSON format** (single object or array):
+
+```bash
+./skills/dev-browser/server.sh --cookies '{"name":"token","value":"xyz","domain":".api.com"}' &
+```
+
+**File reference** (JSON or Netscape/cURL format):
+
+```bash
+./skills/dev-browser/server.sh --cookies @cookies.json &
+./skills/dev-browser/server.sh --cookies @cookies.txt &
+```
+
+Multiple `--cookies` flags merge. Duplicate name+domain pairs: last wins.
+
+#### Multi-Instance Support
+
+Multiple servers can run simultaneously. Port auto-selects if 9222 is occupied (tries 9224, 9226, etc.). Each instance locks its profile directory to prevent corruption.
+
+```bash
+# Check running instances
+./skills/dev-browser/server.sh --status
+
+# Stop a specific instance
+./skills/dev-browser/server.sh --stop 9222
+
+# Stop all instances
+./skills/dev-browser/server.sh --stop-all
+```
+
+When connecting to a non-default port:
+
+```typescript
+const client = await connect("http://localhost:9224");
+```
+
 ### Extension Mode
 
 Connects to user's existing Chrome browser. Use this when:
@@ -116,7 +182,8 @@ For scraping large datasets, intercept and replay network requests rather than s
 ## Client API
 
 ```typescript
-const client = await connect();
+const client = await connect(); // default: http://localhost:9222
+const client = await connect("http://localhost:9224"); // custom port
 
 // Get or create named page (viewport only applies to new pages)
 const page = await client.page("name");
@@ -129,6 +196,9 @@ await client.disconnect(); // Disconnect (pages persist)
 // ARIA Snapshot methods
 const snapshot = await client.getAISnapshot("name"); // Get accessibility tree
 const element = await client.selectSnapshotRef("name", "e5"); // Get element by ref
+
+// Server info
+const info = await client.getServerInfo(); // { wsEndpoint, mode, label, pid, port, ... }
 ```
 
 The `page` object is a standard Playwright Page.
