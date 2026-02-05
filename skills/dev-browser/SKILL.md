@@ -19,13 +19,13 @@ Two modes available. Ask the user if unclear which to use.
 
 ### Standalone Mode (Default)
 
-Launches a new Chromium browser for fresh automation sessions.
+Launches a new Chromium browser in headless mode (no visible window) for fresh automation sessions.
 
 ```bash
 ./skills/dev-browser/server.sh &
 ```
 
-Add `--headless` flag if user requests it. **Wait for the `Ready` message before running scripts.**
+Add `--headful` flag if user needs a visible browser window. **Wait for the `Ready` message before running scripts.**
 
 ### Extension Mode
 
