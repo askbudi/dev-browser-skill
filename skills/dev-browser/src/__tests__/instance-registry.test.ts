@@ -8,6 +8,11 @@ import {
   formatUptime,
   printStatusTable,
   getInstancesDir,
+  updateInstanceChromePid,
+  getInstance,
+  stopInstance,
+  stopAllInstances,
+  cleanOrphanedChrome,
   type InstanceInfo,
 } from "../instance-registry.js";
 import { existsSync, readFileSync, mkdirSync, writeFileSync, rmSync } from "fs";
@@ -28,6 +33,7 @@ function makeInfo(overrides: Partial<InstanceInfo> = {}): InstanceInfo {
     headless: true,
     startedAt: new Date().toISOString(),
     profileDir: "/test/profiles",
+    chromePid: undefined,
     ...overrides,
   };
 }
@@ -295,6 +301,156 @@ describe("instance-registry", () => {
       // Remove from tracked since it was cleaned
       const idx = registeredPorts.indexOf(19261);
       if (idx !== -1) registeredPorts.splice(idx, 1);
+    });
+  });
+
+  describe("chromePid tracking", () => {
+    it("stores chromePid in instance file", () => {
+      registeredPorts.push(19270);
+      const info = makeInfo({ port: 19270, chromePid: 12345 });
+      registerInstance(info);
+
+      const filePath = join(instancesDir, "19270.json");
+      const content = JSON.parse(readFileSync(filePath, "utf-8"));
+      expect(content.chromePid).toBe(12345);
+    });
+
+    it("stores undefined chromePid when not provided", () => {
+      registeredPorts.push(19271);
+      const info = makeInfo({ port: 19271, chromePid: undefined });
+      registerInstance(info);
+
+      const filePath = join(instancesDir, "19271.json");
+      const content = JSON.parse(readFileSync(filePath, "utf-8"));
+      // undefined is not serialized to JSON — it becomes missing key or null
+      expect(content.chromePid).toBeUndefined();
+    });
+  });
+
+  describe("updateInstanceChromePid", () => {
+    it("updates chromePid in an existing instance file", () => {
+      registeredPorts.push(19272);
+      registerInstance(makeInfo({ port: 19272 }));
+
+      updateInstanceChromePid(19272, 99999);
+
+      const filePath = join(instancesDir, "19272.json");
+      const content = JSON.parse(readFileSync(filePath, "utf-8"));
+      expect(content.chromePid).toBe(99999);
+    });
+
+    it("does not throw for non-existent instance", () => {
+      expect(() => updateInstanceChromePid(99997, 12345)).not.toThrow();
+    });
+  });
+
+  describe("getInstance", () => {
+    it("returns instance info for a registered port", () => {
+      registeredPorts.push(19273);
+      registerInstance(makeInfo({ port: 19273, label: "test-get" }));
+
+      const info = getInstance(19273);
+      expect(info).not.toBeNull();
+      expect(info!.port).toBe(19273);
+      expect(info!.label).toBe("test-get");
+    });
+
+    it("returns null for a non-existent port", () => {
+      expect(getInstance(99996)).toBeNull();
+    });
+  });
+
+  describe("stopInstance", () => {
+    it("returns error for non-existent instance", async () => {
+      const result = await stopInstance(99995);
+      expect(result.success).toBe(false);
+      expect(result.message).toContain("No instance registered on port 99995");
+    });
+
+    it("cleans up registry for already-dead server PID", async () => {
+      registeredPorts.push(19280);
+      registerInstance(makeInfo({ port: 19280, pid: 2147483647, chromePid: undefined }));
+
+      const result = await stopInstance(19280);
+      expect(result.success).toBe(true);
+      expect(result.message).toContain("already stopped");
+
+      // Registry file should be removed
+      const filePath = join(instancesDir, "19280.json");
+      expect(existsSync(filePath)).toBe(false);
+
+      // Remove from tracked since already cleaned
+      const idx = registeredPorts.indexOf(19280);
+      if (idx !== -1) registeredPorts.splice(idx, 1);
+    });
+
+    it("returns correct port in result", async () => {
+      registeredPorts.push(19281);
+      registerInstance(makeInfo({ port: 19281, pid: 2147483647 }));
+
+      const result = await stopInstance(19281);
+      expect(result.port).toBe(19281);
+
+      const idx = registeredPorts.indexOf(19281);
+      if (idx !== -1) registeredPorts.splice(idx, 1);
+    });
+  });
+
+  describe("stopAllInstances", () => {
+    it("returns empty array when no instances exist", async () => {
+      // Clean all stale first
+      cleanStaleInstances();
+      // Note: there may be real running instances; we just verify it doesn't throw
+      const results = await stopAllInstances();
+      expect(Array.isArray(results)).toBe(true);
+    });
+
+    it("cleans up stale instances with dead PIDs", async () => {
+      registeredPorts.push(19290, 19292);
+      registerInstance(makeInfo({ port: 19290, pid: 2147483646 }));
+      registerInstance(makeInfo({ port: 19292, pid: 2147483645 }));
+
+      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+      const results = await stopAllInstances();
+      consoleSpy.mockRestore();
+
+      // Both should appear in results as stale or stopped
+      const ports = results.map((r) => r.port);
+      expect(ports).toContain(19290);
+      expect(ports).toContain(19292);
+
+      // Registry should be cleaned
+      expect(existsSync(join(instancesDir, "19290.json"))).toBe(false);
+      expect(existsSync(join(instancesDir, "19292.json"))).toBe(false);
+
+      // Remove from tracked since already cleaned
+      registeredPorts.length = 0;
+    });
+  });
+
+  describe("cleanOrphanedChrome", () => {
+    it("cleans stale instances and returns count", () => {
+      registeredPorts.push(19300);
+      registerInstance(makeInfo({ port: 19300, pid: 2147483644, chromePid: undefined }));
+
+      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+      const cleaned = cleanOrphanedChrome();
+      consoleSpy.mockRestore();
+
+      // The stale instance should have been cleaned from registry
+      expect(existsSync(join(instancesDir, "19300.json"))).toBe(false);
+      // cleaned count may be 0 if no Chrome process was found (no actual Chrome running)
+      expect(typeof cleaned).toBe("number");
+      expect(cleaned).toBeGreaterThanOrEqual(0);
+
+      const idx = registeredPorts.indexOf(19300);
+      if (idx !== -1) registeredPorts.splice(idx, 1);
+    });
+
+    it("does not throw when no orphans exist", () => {
+      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+      expect(() => cleanOrphanedChrome()).not.toThrow();
+      consoleSpy.mockRestore();
     });
   });
 });

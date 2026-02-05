@@ -27,6 +27,9 @@ const mockContext = {
   newPage: vi.fn().mockResolvedValue(mockPage),
   newCDPSession: vi.fn().mockResolvedValue(mockCDPSession),
   close: vi.fn(),
+  browser: vi.fn().mockReturnValue({
+    process: vi.fn().mockReturnValue({ pid: 99999 }),
+  }),
 };
 
 const mockLaunchPersistentContext = vi.fn().mockResolvedValue(mockContext);

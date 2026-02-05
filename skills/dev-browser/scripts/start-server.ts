@@ -1,6 +1,11 @@
 import { serve } from "@/index.js";
 import { parseArgs, resolveConfig, printHelp } from "@/cli.js";
-import { printStatusTable } from "@/instance-registry.js";
+import {
+  printStatusTable,
+  stopInstance,
+  stopAllInstances,
+  cleanOrphanedChrome,
+} from "@/instance-registry.js";
 import { findAvailablePort } from "@/port-selection.js";
 import { execSync } from "child_process";
 import { mkdirSync, existsSync, readdirSync } from "fs";
@@ -25,15 +30,32 @@ if (args.status) {
   process.exit(0);
 }
 
-// Handle --stop (future: instance stop)
+// Handle --stop: stop a specific instance by port
 if (args.stop !== undefined) {
-  console.log(`Stop command not available yet. Coming soon.`);
-  process.exit(0);
+  const port = parseInt(args.stop, 10);
+  if (isNaN(port) || port < 1 || port > 65535) {
+    console.error(`Error: Invalid port "${args.stop}". Must be a number between 1 and 65535.`);
+    process.exit(1);
+  }
+  const result = await stopInstance(port);
+  console.log(result.message);
+  process.exit(result.success ? 0 : 1);
 }
 
-// Handle --stop-all (future: stop all instances)
+// Handle --stop-all: stop all running instances
 if (args.stopAll) {
-  console.log("Stop-all command not available yet. Coming soon.");
+  const results = await stopAllInstances();
+  if (results.length === 0) {
+    console.log("No dev-browser-skill instances to stop.");
+  } else {
+    for (const result of results) {
+      console.log(result.message);
+    }
+    const allOk = results.every((r) => r.success);
+    console.log(
+      `\n${results.length} instance(s) processed${allOk ? "" : " (some may have failed)"}`
+    );
+  }
   process.exit(0);
 }
 
@@ -103,6 +125,12 @@ try {
 } catch (error) {
   console.error("Failed to install Playwright browsers:", error);
   console.log("You may need to run: npx playwright install chromium");
+}
+
+// Clean up orphaned Chrome processes from previous crashed instances
+const orphansCleaned = cleanOrphanedChrome();
+if (orphansCleaned > 0) {
+  console.log(`Cleaned ${orphansCleaned} orphaned Chrome process(es) from previous crashes`);
 }
 
 // Port auto-selection: find an available port pair

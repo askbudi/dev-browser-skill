@@ -11,7 +11,12 @@ import type {
   ServerInfoResponse,
 } from "./types";
 import { parseAllCookies, cookieSummary } from "./cookies.js";
-import { registerInstance, unregisterInstance, formatUptime } from "./instance-registry.js";
+import {
+  registerInstance,
+  unregisterInstance,
+  updateInstanceChromePid,
+  formatUptime,
+} from "./instance-registry.js";
 import { acquireProfileLock, removeLock } from "./profile-lock.js";
 
 export type { ServeOptions, GetPageResponse, ListPagesResponse, ServerInfoResponse };
@@ -92,7 +97,11 @@ export async function serve(options: ServeOptions = {}): Promise<DevBrowserServe
     headless,
     args: [`--remote-debugging-port=${cdpPort}`],
   });
-  console.log("Browser launched with persistent profile...");
+  // Track Chrome process PID
+  const chromePid = context.browser()?.process()?.pid;
+  if (chromePid) {
+    console.log(`Chrome process PID: ${chromePid}`);
+  }
 
   // Inject cookies before any pages are opened
   if (options.cookies && options.cookies.length > 0) {
@@ -228,6 +237,7 @@ export async function serve(options: ServeOptions = {}): Promise<DevBrowserServe
     headless,
     startedAt,
     profileDir,
+    chromePid,
   });
 
   // Start the server
