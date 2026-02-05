@@ -1,4 +1,5 @@
 import { serve } from "@/index.js";
+import { parseArgs, resolveConfig, printHelp } from "@/cli.js";
 import { execSync } from "child_process";
 import { mkdirSync, existsSync, readdirSync } from "fs";
 import { join, dirname } from "path";
@@ -6,7 +7,37 @@ import { fileURLToPath } from "url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const tmpDir = join(__dirname, "..", "tmp");
-const profileDir = join(__dirname, "..", "profiles");
+
+// Parse CLI arguments (skip node and script path)
+const args = parseArgs(process.argv.slice(2));
+
+// Handle --help early (no browser, no deps)
+if (args.help) {
+  printHelp();
+  process.exit(0);
+}
+
+// Handle --status (future: instance registry)
+if (args.status) {
+  console.log("No instance registry available yet. Coming soon.");
+  process.exit(0);
+}
+
+// Handle --stop (future: instance stop)
+if (args.stop !== undefined) {
+  console.log(`Stop command not available yet. Coming soon.`);
+  process.exit(0);
+}
+
+// Handle --stop-all (future: stop all instances)
+if (args.stopAll) {
+  console.log("Stop-all command not available yet. Coming soon.");
+  process.exit(0);
+}
+
+// Resolve final config: CLI args > env vars > defaults
+const config = resolveConfig(args);
+const profileDir = config.profileDir ?? join(__dirname, "..", "profiles");
 
 // Create tmp and profile directories if they don't exist
 console.log("Creating tmp directory...");
@@ -72,14 +103,14 @@ try {
   console.log("You may need to run: npx playwright install chromium");
 }
 
-// Check if server is already running
-console.log("Checking for existing servers...");
+// Check if server is already running on the target port
+console.log(`Checking for existing servers on port ${config.port}...`);
 try {
-  const res = await fetch("http://localhost:9222", {
+  const res = await fetch(`http://localhost:${config.port}`, {
     signal: AbortSignal.timeout(1000),
   });
   if (res.ok) {
-    console.log("Server already running on port 9222");
+    console.log(`Server already running on port ${config.port}`);
     process.exit(0);
   }
 } catch {
@@ -87,29 +118,34 @@ try {
 }
 
 // Clean up stale CDP port if HTTP server isn't running (crash recovery)
-// This handles the case where Node crashed but Chrome is still running on 9223
 try {
-  const pid = execSync("lsof -ti:9223", { encoding: "utf-8" }).trim();
+  const pid = execSync(`lsof -ti:${config.cdpPort}`, { encoding: "utf-8" }).trim();
   if (pid) {
-    console.log(`Cleaning up stale Chrome process on CDP port 9223 (PID: ${pid})`);
+    console.log(`Cleaning up stale Chrome process on CDP port ${config.cdpPort} (PID: ${pid})`);
     execSync(`kill -9 ${pid}`);
   }
 } catch {
   // No process on CDP port, which is expected
 }
 
+console.log(`Browser mode: ${config.headless ? "headless" : "headful"}`);
 console.log("Starting dev browser server...");
-const headless = process.env.HEADLESS === "true";
 const server = await serve({
-  port: 9222,
-  headless,
+  port: config.port,
+  headless: config.headless,
+  cdpPort: config.cdpPort,
   profileDir,
 });
 
 console.log(`Dev browser server started`);
+console.log(`  HTTP API: http://localhost:${config.port}`);
+console.log(`  CDP port: ${config.cdpPort}`);
 console.log(`  WebSocket: ${server.wsEndpoint}`);
 console.log(`  Tmp directory: ${tmpDir}`);
 console.log(`  Profile directory: ${profileDir}`);
+if (config.label) {
+  console.log(`  Label: ${config.label}`);
+}
 console.log(`\nReady`);
 console.log(`\nPress Ctrl+C to stop`);
 
