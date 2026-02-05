@@ -1,5 +1,6 @@
 import { serve } from "@/index.js";
 import { parseArgs, resolveConfig, printHelp } from "@/cli.js";
+import { printStatusTable } from "@/instance-registry.js";
 import { execSync } from "child_process";
 import { mkdirSync, existsSync, readdirSync } from "fs";
 import { join, dirname } from "path";
@@ -17,9 +18,9 @@ if (args.help) {
   process.exit(0);
 }
 
-// Handle --status (future: instance registry)
+// Handle --status: list all running instances and exit
 if (args.status) {
-  console.log("No instance registry available yet. Coming soon.");
+  printStatusTable();
   process.exit(0);
 }
 
@@ -136,6 +137,7 @@ const server = await serve({
   cdpPort: config.cdpPort,
   profileDir,
   cookies: config.cookies,
+  label: config.label,
 });
 
 console.log(`Dev browser server started`);
@@ -144,9 +146,7 @@ console.log(`  CDP port: ${config.cdpPort}`);
 console.log(`  WebSocket: ${server.wsEndpoint}`);
 console.log(`  Tmp directory: ${tmpDir}`);
 console.log(`  Profile directory: ${profileDir}`);
-if (config.label) {
-  console.log(`  Label: ${config.label}`);
-}
+console.log(`  Label: ${config.label ?? process.cwd()}`);
 console.log(`\nReady`);
 console.log(`\nPress Ctrl+C to stop`);
 

@@ -11,6 +11,7 @@ import type {
   ServerInfoResponse,
 } from "./types";
 import { parseAllCookies, cookieSummary } from "./cookies.js";
+import { registerInstance, unregisterInstance, formatUptime } from "./instance-registry.js";
 
 export type { ServeOptions, GetPageResponse, ListPagesResponse, ServerInfoResponse };
 
@@ -57,6 +58,8 @@ export async function serve(options: ServeOptions = {}): Promise<DevBrowserServe
   const headless = options.headless ?? true;
   const cdpPort = options.cdpPort ?? 9223;
   const profileDir = options.profileDir;
+  const label = options.label ?? process.cwd();
+  const startedAt = new Date().toISOString();
 
   // Validate port numbers
   if (port < 1 || port > 65535) {
@@ -126,9 +129,20 @@ export async function serve(options: ServeOptions = {}): Promise<DevBrowserServe
   const app: Express = express();
   app.use(express.json());
 
-  // GET / - server info
+  // GET / - server info with instance metadata
   app.get("/", (_req: Request, res: Response) => {
-    const response: ServerInfoResponse = { wsEndpoint };
+    const response: ServerInfoResponse = {
+      wsEndpoint,
+      mode: "launch",
+      label,
+      pid: process.pid,
+      port,
+      cdpPort,
+      headless,
+      startedAt,
+      uptime: formatUptime(startedAt),
+      pages: registry.size,
+    };
     res.json(response);
   });
 
@@ -200,6 +214,18 @@ export async function serve(options: ServeOptions = {}): Promise<DevBrowserServe
     res.status(404).json({ error: "page not found" });
   });
 
+  // Register this instance in the shared registry
+  registerInstance({
+    pid: process.pid,
+    port,
+    cdpPort,
+    mode: "launch",
+    label,
+    headless,
+    startedAt,
+    profileDir,
+  });
+
   // Start the server
   const server = app.listen(port, () => {
     console.log(`HTTP API server running on port ${port}`);
@@ -244,6 +270,9 @@ export async function serve(options: ServeOptions = {}): Promise<DevBrowserServe
     } catch {
       // Context might already be closed
     }
+
+    // Unregister from instance registry
+    unregisterInstance(port);
 
     server.close();
     console.log("Server stopped.");

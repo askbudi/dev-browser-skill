@@ -71,9 +71,14 @@ vi.stubGlobal(
   })
 );
 
-// Mock fs.mkdirSync to avoid creating real directories
+// Mock fs to avoid creating real directories or writing instance registry files
 vi.mock("fs", () => ({
   mkdirSync: vi.fn(),
+  writeFileSync: vi.fn(),
+  readFileSync: vi.fn(),
+  unlinkSync: vi.fn(),
+  readdirSync: vi.fn(() => []),
+  existsSync: vi.fn(() => false),
 }));
 
 describe("serve() defaults", () => {

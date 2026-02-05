@@ -8,6 +8,8 @@ export interface ServeOptions {
   profileDir?: string;
   /** Raw --cookies argument strings to parse and inject at startup */
   cookies?: string[];
+  /** Label for this server instance (default: process.cwd()) */
+  label?: string;
 }
 
 export interface ViewportSize {
@@ -33,4 +35,13 @@ export interface ListPagesResponse {
 
 export interface ServerInfoResponse {
   wsEndpoint: string;
+  mode: "launch" | "relay";
+  label: string;
+  pid: number;
+  port: number;
+  cdpPort: number;
+  headless: boolean;
+  startedAt: string;
+  uptime: string;
+  pages: number;
 }
