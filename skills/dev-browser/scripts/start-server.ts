@@ -12,6 +12,22 @@ import { createWriteStream, mkdirSync, existsSync, readdirSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 
+/**
+ * Install npm dependencies using npm ci if node_modules is missing.
+ * npm ci is preferred over npm install because it:
+ * - Installs exact versions from package-lock.json (deterministic)
+ * - Is faster in CI/Docker environments (no resolution step)
+ * - Ensures clean installs by removing existing node_modules first
+ */
+function ensureDependenciesInstalled(scriptDir: string): void {
+  const nodeModulesDir = join(scriptDir, "node_modules");
+  if (!existsSync(nodeModulesDir)) {
+    console.log("Dependencies not found. Installing with npm ci...");
+    execSync("npm ci", { cwd: scriptDir, stdio: "inherit" });
+    console.log("Dependencies installed successfully.");
+  }
+}
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const tmpDir = join(__dirname, "..", "tmp");
 
@@ -152,6 +168,12 @@ function installPlaywrightBrowsers(): void {
 if (args.installRequirements) {
   console.log("Installing requirements...");
 
+  // Install npm dependencies using npm ci
+  const skillDir = join(__dirname, "..");
+  console.log("Installing npm dependencies with npm ci...");
+  execSync("npm ci", { cwd: skillDir, stdio: "inherit" });
+  console.log("npm dependencies installed successfully.");
+
   // Create necessary directories
   const profileDir = join(__dirname, "..", "profiles");
   mkdirSync(tmpDir, { recursive: true });
@@ -165,6 +187,9 @@ if (args.installRequirements) {
   console.log("\nAll requirements installed successfully.");
   process.exit(0);
 }
+
+// Auto-install npm dependencies if node_modules is missing
+ensureDependenciesInstalled(join(__dirname, ".."));
 
 // Resolve final config: CLI args > env vars > defaults
 const config = resolveConfig(args);

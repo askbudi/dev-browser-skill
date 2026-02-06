@@ -18,8 +18,11 @@ for arg in "$@"; do
 done
 
 if [ "$SKIP_INSTALL" = false ]; then
-  echo "Installing dependencies..."
-  npm install --silent
+  # Auto-install dependencies if node_modules is missing
+  if [ ! -d "$SCRIPT_DIR/node_modules" ]; then
+    echo "Dependencies not found. Installing with npm ci..."
+    npm ci --silent
+  fi
 fi
 
 npx tsx scripts/start-server.ts "$@"
