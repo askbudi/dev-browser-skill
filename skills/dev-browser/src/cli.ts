@@ -17,6 +17,7 @@ export interface ParsedArgs {
   status: boolean;
   stop: string | undefined;
   stopAll: boolean;
+  installRequirements: boolean;
 }
 
 export interface ResolvedConfig {
@@ -46,6 +47,13 @@ OPTIONS:
   --status                Show running server instances and exit
   --stop <port>           Stop the server instance on the given port
   --stop-all              Stop all running server instances
+  --install-requirements  Install Playwright browsers and exit (no server start)
+
+ENVIRONMENT VARIABLES:
+  DEV_BROWSER_DISABLE_HEADFUL=true   Force headless mode (ignores --headful flag)
+  DEV_BROWSER_LOG_PATH=<path>        Redirect all log output to the specified file
+  PORT=<number>                      HTTP API port (overridden by --port flag)
+  HEADLESS=true|false                Browser mode (overridden by --headful/--headless flags)
 
 COOKIES:
   --cookies @cookies.json                                      Load from JSON file
@@ -58,6 +66,7 @@ EXAMPLES:
   ./server.sh --headful --port 8080    Start visible browser on port 8080
   ./server.sh --status                 List all running server instances
   ./server.sh --stop 9222              Stop server on port 9222
+  ./server.sh --install-requirements  Install Playwright browsers only
 `;
 
 const KNOWN_FLAGS = new Set([
@@ -73,6 +82,7 @@ const KNOWN_FLAGS = new Set([
   "--status",
   "--stop",
   "--stop-all",
+  "--install-requirements",
 ]);
 
 const FLAGS_WITH_VALUES = new Set([
@@ -101,6 +111,7 @@ export function parseArgs(argv: string[]): ParsedArgs {
     status: false,
     stop: undefined,
     stopAll: false,
+    installRequirements: false,
   };
 
   let i = 0;
@@ -175,6 +186,9 @@ export function parseArgs(argv: string[]): ParsedArgs {
       case "--stop-all":
         args.stopAll = true;
         break;
+      case "--install-requirements":
+        args.installRequirements = true;
+        break;
     }
 
     i++;
@@ -188,9 +202,15 @@ export function parseArgs(argv: string[]): ParsedArgs {
  * Priority: CLI args > env vars > defaults.
  */
 export function resolveConfig(args: ParsedArgs): ResolvedConfig {
-  // Headless resolution: CLI --headful/--headless > env HEADLESS > default (true)
+  // Headless resolution:
+  // DEV_BROWSER_DISABLE_HEADFUL=true overrides everything (forces headless)
+  // Otherwise: CLI --headful/--headless > env HEADLESS > default (true)
+  const disableHeadful = process.env.DEV_BROWSER_DISABLE_HEADFUL === "true";
+
   let headless: boolean;
-  if (args.headful) {
+  if (disableHeadful) {
+    headless = true;
+  } else if (args.headful) {
     headless = false;
   } else if (args.headless) {
     headless = true;

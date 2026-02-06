@@ -57,21 +57,31 @@ EOF
 
 ## CLI Flags
 
-| Flag                   | Description                                          |
-| ---------------------- | ---------------------------------------------------- |
-| `--help`, `-h`         | Show help and exit                                   |
-| `--headless`           | Headless mode (default)                              |
-| `--headful`            | Visible browser window                               |
-| `--port <n>`           | HTTP API port (default: 9222, auto-selects if busy)  |
-| `--cdp-port <n>`       | Chrome DevTools Protocol port (default: port+1)      |
-| `--profile-dir <path>` | Browser profile directory                            |
-| `--label <name>`       | Instance label (default: cwd)                        |
-| `--cookies <source>`   | Load cookies (repeatable); key-value, JSON, or @file |
-| `--status`             | List running instances                               |
-| `--stop <port>`        | Stop instance on port                                |
-| `--stop-all`           | Stop all instances                                   |
+| Flag                     | Description                                          |
+| ------------------------ | ---------------------------------------------------- |
+| `--help`, `-h`           | Show help and exit                                   |
+| `--headless`             | Headless mode (default)                              |
+| `--headful`              | Visible browser window                               |
+| `--port <n>`             | HTTP API port (default: 9222, auto-selects if busy)  |
+| `--cdp-port <n>`         | Chrome DevTools Protocol port (default: port+1)      |
+| `--profile-dir <path>`   | Browser profile directory                            |
+| `--label <name>`         | Instance label (default: cwd)                        |
+| `--cookies <source>`     | Load cookies (repeatable); key-value, JSON, or @file |
+| `--status`               | List running instances                               |
+| `--stop <port>`          | Stop instance on port                                |
+| `--stop-all`             | Stop all instances                                   |
+| `--install-requirements` | Install Playwright browsers and exit (no server)     |
 
 Priority: CLI flags > environment variables > defaults.
+
+## Environment Variables
+
+| Variable                      | Description                                                            |
+| ----------------------------- | ---------------------------------------------------------------------- |
+| `DEV_BROWSER_DISABLE_HEADFUL` | Set to `true` to force headless mode (ignores `--headful` flag)        |
+| `DEV_BROWSER_LOG_PATH`        | File path to redirect all log output (logs are also printed to stdout) |
+| `PORT`                        | HTTP API port (overridden by `--port` flag)                            |
+| `HEADLESS`                    | Browser mode `true`/`false` (overridden by `--headful`/`--headless`)   |
 
 ## Cookie Formats
 

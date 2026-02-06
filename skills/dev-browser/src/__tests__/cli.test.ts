@@ -24,6 +24,7 @@ function defaultArgs(overrides: Partial<ParsedArgs> = {}): ParsedArgs {
     status: false,
     stop: undefined,
     stopAll: false,
+    installRequirements: false,
     ...overrides,
   };
 }
@@ -58,6 +59,7 @@ describe("parseArgs", () => {
       status: false,
       stop: undefined,
       stopAll: false,
+      installRequirements: false,
     });
   });
 
@@ -177,6 +179,16 @@ describe("parseArgs", () => {
     expect(exitSpy).toHaveBeenCalledWith(1);
     expect(stderrSpy).toHaveBeenCalledWith(expect.stringContaining("requires a value"));
   });
+
+  it("parses --install-requirements flag", () => {
+    const result = parseArgs(["--install-requirements"]);
+    expect(result.installRequirements).toBe(true);
+  });
+
+  it("--install-requirements defaults to false", () => {
+    const result = parseArgs([]);
+    expect(result.installRequirements).toBe(false);
+  });
 });
 
 describe("resolveConfig", () => {
@@ -187,6 +199,7 @@ describe("resolveConfig", () => {
     // Clear relevant env vars
     delete process.env.HEADLESS;
     delete process.env.PORT;
+    delete process.env.DEV_BROWSER_DISABLE_HEADFUL;
   });
 
   afterEach(() => {
@@ -280,6 +293,36 @@ describe("resolveConfig", () => {
     const config = resolveConfig(defaultArgs());
     expect(config.port).toBe(9222);
   });
+
+  it("DEV_BROWSER_DISABLE_HEADFUL=true forces headless even with --headful", () => {
+    process.env.DEV_BROWSER_DISABLE_HEADFUL = "true";
+    const config = resolveConfig(defaultArgs({ headful: true }));
+    expect(config.headless).toBe(true);
+  });
+
+  it("DEV_BROWSER_DISABLE_HEADFUL=true forces headless without any flags", () => {
+    process.env.DEV_BROWSER_DISABLE_HEADFUL = "true";
+    const config = resolveConfig(defaultArgs());
+    expect(config.headless).toBe(true);
+  });
+
+  it("DEV_BROWSER_DISABLE_HEADFUL=true overrides env HEADLESS=false", () => {
+    process.env.DEV_BROWSER_DISABLE_HEADFUL = "true";
+    process.env.HEADLESS = "false";
+    const config = resolveConfig(defaultArgs());
+    expect(config.headless).toBe(true);
+  });
+
+  it("DEV_BROWSER_DISABLE_HEADFUL not set allows --headful to work normally", () => {
+    const config = resolveConfig(defaultArgs({ headful: true }));
+    expect(config.headless).toBe(false);
+  });
+
+  it("DEV_BROWSER_DISABLE_HEADFUL=false does not override --headful", () => {
+    process.env.DEV_BROWSER_DISABLE_HEADFUL = "false";
+    const config = resolveConfig(defaultArgs({ headful: true }));
+    expect(config.headless).toBe(false);
+  });
 });
 
 describe("printHelp", () => {
@@ -290,6 +333,22 @@ describe("printHelp", () => {
     expect(stdoutSpy).toHaveBeenCalledWith(expect.stringContaining("--help"));
     expect(stdoutSpy).toHaveBeenCalledWith(expect.stringContaining("--port"));
     expect(stdoutSpy).toHaveBeenCalledWith(expect.stringContaining("EXAMPLES"));
+    stdoutSpy.mockRestore();
+  });
+
+  it("includes --install-requirements in help text", () => {
+    const stdoutSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+    printHelp();
+    expect(stdoutSpy).toHaveBeenCalledWith(expect.stringContaining("--install-requirements"));
+    stdoutSpy.mockRestore();
+  });
+
+  it("includes ENVIRONMENT VARIABLES section in help text", () => {
+    const stdoutSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+    printHelp();
+    expect(stdoutSpy).toHaveBeenCalledWith(expect.stringContaining("ENVIRONMENT VARIABLES"));
+    expect(stdoutSpy).toHaveBeenCalledWith(expect.stringContaining("DEV_BROWSER_DISABLE_HEADFUL"));
+    expect(stdoutSpy).toHaveBeenCalledWith(expect.stringContaining("DEV_BROWSER_LOG_PATH"));
     stdoutSpy.mockRestore();
   });
 });

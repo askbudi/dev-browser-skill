@@ -8,12 +8,40 @@ import {
 } from "@/instance-registry.js";
 import { findAvailablePort } from "@/port-selection.js";
 import { execSync } from "child_process";
-import { mkdirSync, existsSync, readdirSync } from "fs";
+import { createWriteStream, mkdirSync, existsSync, readdirSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const tmpDir = join(__dirname, "..", "tmp");
+
+// Set up log redirection if DEV_BROWSER_LOG_PATH is set
+if (process.env.DEV_BROWSER_LOG_PATH) {
+  const logPath = process.env.DEV_BROWSER_LOG_PATH;
+  const logDir = dirname(logPath);
+  mkdirSync(logDir, { recursive: true });
+  const logStream = createWriteStream(logPath, { flags: "a" });
+
+  const originalStdoutWrite = process.stdout.write.bind(process.stdout);
+  const originalStderrWrite = process.stderr.write.bind(process.stderr);
+
+  process.stdout.write = (chunk: any, ...rest: any[]) => {
+    logStream.write(chunk);
+    return originalStdoutWrite(chunk, ...rest);
+  };
+  process.stderr.write = (chunk: any, ...rest: any[]) => {
+    logStream.write(chunk);
+    return originalStderrWrite(chunk, ...rest);
+  };
+
+  // Override console methods to go through the redirected streams
+  const origLog = console.log;
+  const origError = console.error;
+  console.log = (...args: any[]) => origLog(...args);
+  console.error = (...args: any[]) => origError(...args);
+
+  console.log(`Log output also being written to: ${logPath}`);
+}
 
 // Parse CLI arguments (skip node and script path)
 const args = parseArgs(process.argv.slice(2));
@@ -59,19 +87,7 @@ if (args.stopAll) {
   process.exit(0);
 }
 
-// Resolve final config: CLI args > env vars > defaults
-const config = resolveConfig(args);
-const profileDir = config.profileDir ?? join(__dirname, "..", "profiles");
-
-// Create tmp and profile directories if they don't exist
-console.log("Creating tmp directory...");
-mkdirSync(tmpDir, { recursive: true });
-console.log("Creating profiles directory...");
-mkdirSync(profileDir, { recursive: true });
-
 // Install Playwright browsers if not already installed
-console.log("Checking Playwright browser installation...");
-
 function findPackageManager(): { name: string; command: string } | null {
   const managers = [
     { name: "bun", command: "bunx playwright install chromium" },
@@ -107,25 +123,67 @@ function isChromiumInstalled(): boolean {
   }
 }
 
-try {
-  if (!isChromiumInstalled()) {
-    console.log("Playwright Chromium not found. Installing (this may take a minute)...");
+function installPlaywrightBrowsers(): void {
+  try {
+    if (!isChromiumInstalled()) {
+      console.log("Playwright Chromium not found. Installing (this may take a minute)...");
 
-    const pm = findPackageManager();
-    if (!pm) {
-      throw new Error("No package manager found (tried bun, pnpm, npm)");
+      const pm = findPackageManager();
+      if (!pm) {
+        throw new Error("No package manager found (tried bun, pnpm, npm)");
+      }
+
+      console.log(`Using ${pm.name} to install Playwright...`);
+      execSync(pm.command, { stdio: "inherit" });
+      console.log("Chromium installed successfully.");
+    } else {
+      console.log("Playwright Chromium already installed.");
     }
-
-    console.log(`Using ${pm.name} to install Playwright...`);
-    execSync(pm.command, { stdio: "inherit" });
-    console.log("Chromium installed successfully.");
-  } else {
-    console.log("Playwright Chromium already installed.");
+  } catch (error) {
+    console.error("Failed to install Playwright browsers:", error);
+    console.log("You may need to run: npx playwright install chromium");
+    if (args.installRequirements) {
+      process.exit(1);
+    }
   }
-} catch (error) {
-  console.error("Failed to install Playwright browsers:", error);
-  console.log("You may need to run: npx playwright install chromium");
 }
+
+// Handle --install-requirements: install deps and exit (no server start)
+if (args.installRequirements) {
+  console.log("Installing requirements...");
+
+  // Create necessary directories
+  const profileDir = join(__dirname, "..", "profiles");
+  mkdirSync(tmpDir, { recursive: true });
+  mkdirSync(profileDir, { recursive: true });
+  console.log(`Created tmp directory: ${tmpDir}`);
+  console.log(`Created profiles directory: ${profileDir}`);
+
+  // Install Playwright browsers
+  installPlaywrightBrowsers();
+
+  console.log("\nAll requirements installed successfully.");
+  process.exit(0);
+}
+
+// Resolve final config: CLI args > env vars > defaults
+const config = resolveConfig(args);
+const profileDir = config.profileDir ?? join(__dirname, "..", "profiles");
+
+// Warn if DEV_BROWSER_DISABLE_HEADFUL is active and --headful was requested
+if (process.env.DEV_BROWSER_DISABLE_HEADFUL === "true" && args.headful) {
+  console.log("Warning: --headful flag ignored because DEV_BROWSER_DISABLE_HEADFUL=true is set");
+}
+
+// Create tmp and profile directories if they don't exist
+console.log("Creating tmp directory...");
+mkdirSync(tmpDir, { recursive: true });
+console.log("Creating profiles directory...");
+mkdirSync(profileDir, { recursive: true });
+
+// Install Playwright browsers if not already installed
+console.log("Checking Playwright browser installation...");
+installPlaywrightBrowsers();
 
 // Clean up orphaned Chrome processes from previous crashed instances
 const orphansCleaned = cleanOrphanedChrome();

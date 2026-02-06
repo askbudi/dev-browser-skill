@@ -15,6 +15,7 @@ Browser automation that maintains page state across script executions. Write sma
 - **Visual feedback**: Take screenshots to see what the user sees
 
 ## Setup
+
 Run `./skills/dev-browser/server.sh --help` to see what is available.
 
 Two modes available. Ask the user if unclear which to use.
@@ -31,21 +32,31 @@ Add `--headful` flag if user needs a visible browser window. **Wait for the `Rea
 
 #### CLI Flags
 
-| Flag                   | Description                                             |
-| ---------------------- | ------------------------------------------------------- |
-| `--help`, `-h`         | Show help message and exit                              |
-| `--headless`           | Run in headless mode (default)                          |
-| `--headful`            | Run with visible browser window                         |
-| `--port <number>`      | HTTP API port (default: 9222, auto-selects if occupied) |
-| `--cdp-port <number>`  | Chrome DevTools Protocol port (default: port+1)         |
-| `--profile-dir <path>` | Custom browser profile directory                        |
-| `--label <name>`       | Label this instance (default: current directory)        |
-| `--cookies <source>`   | Load cookies at startup (repeatable, see below)         |
-| `--status`             | Show all running instances and exit                     |
-| `--stop <port>`        | Stop instance on given port                             |
-| `--stop-all`           | Stop all running instances                              |
+| Flag                     | Description                                             |
+| ------------------------ | ------------------------------------------------------- |
+| `--help`, `-h`           | Show help message and exit                              |
+| `--headless`             | Run in headless mode (default)                          |
+| `--headful`              | Run with visible browser window                         |
+| `--port <number>`        | HTTP API port (default: 9222, auto-selects if occupied) |
+| `--cdp-port <number>`    | Chrome DevTools Protocol port (default: port+1)         |
+| `--profile-dir <path>`   | Custom browser profile directory                        |
+| `--label <name>`         | Label this instance (default: current directory)        |
+| `--cookies <source>`     | Load cookies at startup (repeatable, see below)         |
+| `--status`               | Show all running instances and exit                     |
+| `--stop <port>`          | Stop instance on given port                             |
+| `--stop-all`             | Stop all running instances                              |
+| `--install-requirements` | Install Playwright browsers and exit (no server start)  |
 
 Configuration priority: CLI flags > environment variables > defaults.
+
+#### Environment Variables
+
+| Variable                      | Effect                                                               |
+| ----------------------------- | -------------------------------------------------------------------- |
+| `DEV_BROWSER_DISABLE_HEADFUL` | Set `true` to force headless (ignores `--headful`)                   |
+| `DEV_BROWSER_LOG_PATH`        | Redirect log output to a file (also prints to stdout)                |
+| `PORT`                        | Default HTTP port (overridden by `--port`)                           |
+| `HEADLESS`                    | Default mode `true`/`false` (overridden by `--headful`/`--headless`) |
 
 #### Pre-loading Cookies
 
@@ -283,6 +294,5 @@ EOF
 ```
 
 ---
+
 $ARGUMENTS
-
-
