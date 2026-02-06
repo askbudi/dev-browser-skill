@@ -120,7 +120,7 @@ Connect to user's existing Chrome browser for authenticated sessions.
 cd skills/dev-browser && npm i && npm run start-extension &
 ```
 
-Requires the [dev-browser Chrome extension](https://github.com/SawyerHood/dev-browser/releases). The client API is identical — scripts use `client.page("name")` the same way.
+Requires the [dev-browser Chrome extension](https://github.com/askbudi/dev-browser-skill/releases). The client API is identical — scripts use `client.page("name")` the same way.
 
 ## Multi-Instance Management
 

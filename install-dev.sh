@@ -35,8 +35,8 @@ else
 fi
 
 # Also try to remove from the GitHub marketplace if it exists
-if $CLAUDE plugin uninstall "${PLUGIN_NAME}@sawyerhood/dev-browser" 2>/dev/null; then
-    echo "  Removed plugin from GitHub marketplace: ${PLUGIN_NAME}@sawyerhood/dev-browser"
+if $CLAUDE plugin uninstall "${PLUGIN_NAME}@askbudi/dev-browser-skill" 2>/dev/null; then
+    echo "  Removed plugin from GitHub marketplace: ${PLUGIN_NAME}@askbudi/dev-browser-skill"
 else
     echo "  No GitHub marketplace plugin found (skipping)"
 fi
@@ -51,8 +51,8 @@ else
     echo "  Local marketplace not found (skipping)"
 fi
 
-if $CLAUDE plugin marketplace remove "sawyerhood/dev-browser" 2>/dev/null; then
-    echo "  Removed GitHub marketplace: sawyerhood/dev-browser"
+if $CLAUDE plugin marketplace remove "askbudi/dev-browser-skill" 2>/dev/null; then
+    echo "  Removed GitHub marketplace: askbudi/dev-browser-skill"
 else
     echo "  GitHub marketplace not found (skipping)"
 fi

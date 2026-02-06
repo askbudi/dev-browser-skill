@@ -116,7 +116,7 @@ Wait for `Waiting for extension to connect...` followed by `Extension connected`
 1. Scripts call `client.page("name")` just like the normal mode to create new pages / connect to existing ones.
 2. Automation runs on the user's actual browser session
 
-If the extension hasn't connected yet, tell the user to launch and activate it. Download link: https://github.com/SawyerHood/dev-browser/releases
+If the extension hasn't connected yet, tell the user to launch and activate it. Download link: https://github.com/askbudi/dev-browser-skill/releases
 
 ## Writing Scripts
 
