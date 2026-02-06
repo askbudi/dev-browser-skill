@@ -180,12 +180,17 @@ describe("parseArgs", () => {
     expect(stderrSpy).toHaveBeenCalledWith(expect.stringContaining("requires a value"));
   });
 
-  it("parses --install-requirements flag", () => {
+  it("parses --install flag", () => {
+    const result = parseArgs(["--install"]);
+    expect(result.installRequirements).toBe(true);
+  });
+
+  it("parses --install-requirements flag (backward compat alias)", () => {
     const result = parseArgs(["--install-requirements"]);
     expect(result.installRequirements).toBe(true);
   });
 
-  it("--install-requirements defaults to false", () => {
+  it("--install defaults to false", () => {
     const result = parseArgs([]);
     expect(result.installRequirements).toBe(false);
   });
@@ -336,10 +341,10 @@ describe("printHelp", () => {
     stdoutSpy.mockRestore();
   });
 
-  it("includes --install-requirements in help text", () => {
+  it("includes --install in help text", () => {
     const stdoutSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
     printHelp();
-    expect(stdoutSpy).toHaveBeenCalledWith(expect.stringContaining("--install-requirements"));
+    expect(stdoutSpy).toHaveBeenCalledWith(expect.stringContaining("--install"));
     stdoutSpy.mockRestore();
   });
 

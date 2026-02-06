@@ -70,7 +70,7 @@ EOF
 | `--status`               | List running instances                               |
 | `--stop <port>`          | Stop instance on port                                |
 | `--stop-all`             | Stop all instances                                   |
-| `--install-requirements` | Install Playwright browsers and exit (no server)     |
+| `--install`              | Install Playwright browsers and dependencies, then exit |
 
 Priority: CLI flags > environment variables > defaults.
 

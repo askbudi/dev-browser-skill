@@ -45,7 +45,7 @@ Add `--headful` flag if user needs a visible browser window. **Wait for the `Rea
 | `--status`               | Show all running instances and exit                     |
 | `--stop <port>`          | Stop instance on given port                             |
 | `--stop-all`             | Stop all running instances                              |
-| `--install-requirements` | Install Playwright browsers and exit (no server start)  |
+| `--install`              | Install Playwright browsers and dependencies, then exit |
 
 Configuration priority: CLI flags > environment variables > defaults.
 

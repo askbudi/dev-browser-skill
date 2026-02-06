@@ -47,7 +47,7 @@ OPTIONS:
   --status                Show running server instances and exit
   --stop <port>           Stop the server instance on the given port
   --stop-all              Stop all running server instances
-  --install-requirements  Install Playwright browsers and exit (no server start)
+  --install               Install Playwright browsers and dependencies, then exit
 
 ENVIRONMENT VARIABLES:
   DEV_BROWSER_DISABLE_HEADFUL=true   Force headless mode (ignores --headful flag)
@@ -66,7 +66,7 @@ EXAMPLES:
   ./server.sh --headful --port 8080    Start visible browser on port 8080
   ./server.sh --status                 List all running server instances
   ./server.sh --stop 9222              Stop server on port 9222
-  ./server.sh --install-requirements  Install Playwright browsers only
+  ./server.sh --install               Install Playwright browsers and exit
 `;
 
 const KNOWN_FLAGS = new Set([
@@ -82,6 +82,7 @@ const KNOWN_FLAGS = new Set([
   "--status",
   "--stop",
   "--stop-all",
+  "--install",
   "--install-requirements",
 ]);
 
@@ -186,6 +187,7 @@ export function parseArgs(argv: string[]): ParsedArgs {
       case "--stop-all":
         args.stopAll = true;
         break;
+      case "--install":
       case "--install-requirements":
         args.installRequirements = true;
         break;

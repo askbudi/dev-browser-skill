@@ -148,7 +148,7 @@ function installPlaywrightBrowsers(): void {
   }
 }
 
-// Handle --install-requirements: install deps and exit (no server start)
+// Handle --install / --install-requirements: install deps and exit (no server start)
 if (args.installRequirements) {
   console.log("Installing requirements...");
 

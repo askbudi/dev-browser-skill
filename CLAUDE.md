@@ -72,7 +72,7 @@ cd skills/dev-browser && npx tsx scripts/start-server.ts [OPTIONS]
 
 # Available flags:
 # --help, --headless, --headful, --port, --cdp-port, --profile-dir,
-# --label, --cookies, --status, --stop, --stop-all
+# --label, --cookies, --status, --stop, --stop-all, --install
 ```
 
 **Development Notes:**
