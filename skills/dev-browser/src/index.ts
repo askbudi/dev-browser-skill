@@ -98,7 +98,8 @@ export async function serve(options: ServeOptions = {}): Promise<DevBrowserServe
     args: [`--remote-debugging-port=${cdpPort}`],
   });
   // Track Chrome process PID
-  const chromePid = context.browser()?.process()?.pid;
+  // For persistent contexts, browser() returns null and process may not exist as a method
+  const chromePid = (context.browser() as any)?.process?.()?.pid as number | undefined;
   if (chromePid) {
     console.log(`Chrome process PID: ${chromePid}`);
   }
