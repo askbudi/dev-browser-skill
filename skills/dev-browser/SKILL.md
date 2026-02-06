@@ -1,6 +1,7 @@
 ---
 name: dev-browser
 description: Browser automation with persistent page state. Use when users ask to navigate websites, fill forms, take screenshots, extract web data, test web apps, or automate browser workflows. Trigger phrases include "go to [url]", "click on", "fill out the form", "take a screenshot", "scrape", "automate", "test the website", "log into", or any browser interaction request.
+argument-hint: [Task] [Cookies path .txt json or key value]
 ---
 
 # Dev Browser Skill
@@ -14,6 +15,7 @@ Browser automation that maintains page state across script executions. Write sma
 - **Visual feedback**: Take screenshots to see what the user sees
 
 ## Setup
+Run `./skills/dev-browser/server.sh --help` to see what is available.
 
 Two modes available. Ask the user if unclear which to use.
 
@@ -279,3 +281,8 @@ console.log({
 await client.disconnect();
 EOF
 ```
+
+---
+$ARGUMENTS
+
+

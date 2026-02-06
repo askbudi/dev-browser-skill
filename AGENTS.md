@@ -1,4 +1,4 @@
-# Claude Code Session Documentation
+# AGENTS.md Session Documentation
 
 ## Current Project Configuration
 
@@ -7,6 +7,14 @@
 **Project Path:** /Users/mahdiyar/Code/CA_JUNOAI/playground/dev-browser-skill
 **Git Repository:** Not specified
 **Configuration Date:** 2026-02-05
+
+## Agent-Specific Instructions
+
+### claude Configuration
+- **Recommended Model:** Latest available model for claude
+- **Interaction Style:** Professional and detail-oriented
+- **Code Quality:** Focus on production-ready, well-documented code
+- **Testing:** Comprehensive unit and integration tests required
 
 ## Kanban Task Management
 
@@ -28,54 +36,43 @@ When creating a task, relevant to another task, you can add the following format
 
 Important: You need to get maximum 3 tasks done in one go. 
 
-## Agent-Specific Instructions
-
-### claude Configuration
-- **Recommended Model:** Latest available model for claude
-- **Interaction Style:** Professional and detail-oriented
-- **Code Quality:** Focus on production-ready, well-documented code
-- **Testing:** Comprehensive unit and integration tests required
-
 ## Build & Test Commands
 
-**Install Dependencies:**
+**Environment Setup:**
 ```bash
-cd skills/dev-browser && npm install
-cd extension && npm install
+# Activate virtual environment (if applicable)
+source /Users/mahdiyar/Code/CA_JUNOAI/playground/dev-browser-skill/.venv_juno/bin/activate
+
+# Navigate to project
+cd /Users/mahdiyar/Code/CA_JUNOAI/playground/dev-browser-skill
 ```
 
 **Testing:**
 ```bash
-# Skill tests
-cd skills/dev-browser && npx vitest run
+# Run tests
+python -m pytest tests/ -v
 
-# Extension tests (requires wxt prepare to generate .wxt/tsconfig.json)
-cd extension && npx wxt prepare && npx vitest run
-```
-
-**Formatting:**
-```bash
-# Format check (from root)
-npm run format:check
-
-# Format fix (from root)
-npm run format
-```
-
-**Start Server:**
-```bash
-# Using server script
-./skills/dev-browser/server.sh [OPTIONS]
-
-# Using npx
-cd skills/dev-browser && npx tsx scripts/start-server.ts [OPTIONS]
-
-# Available flags:
-# --help, --headless, --headful, --port, --cdp-port, --profile-dir,
-# --label, --cookies, --status, --stop, --stop-all
+# Run with coverage
+python -m pytest tests/ --cov=src --cov-report=term-missing
 ```
 
 **Development Notes:**
 - Keep this file updated with important learnings and optimizations
 - Document any environment-specific setup requirements
 - Record successful command patterns for future reference
+
+## Session History
+
+| Date | Agent | Task Summary | Status |
+|------|-------|--------------|---------|
+| 2026-02-05 | claude | Project initialization | ✅ Completed |
+
+## Agent Performance Notes
+
+### claude Observations:
+- Initial setup: Successful
+- Code quality: To be evaluated
+- Test coverage: To be assessed
+- Documentation: To be reviewed
+
+*Note: Update this section with actual performance observations during development*
