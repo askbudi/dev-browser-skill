@@ -7,6 +7,13 @@ import {
   cleanOrphanedChrome,
 } from "@/instance-registry.js";
 import { findAvailablePort } from "@/port-selection.js";
+import {
+  installGlobalDeps,
+  cleanGlobalDeps,
+  resolveDepSource,
+  checkVersionCoherence,
+  getGlobalNodePath,
+} from "@/global-deps.js";
 import { execSync } from "child_process";
 import { createWriteStream, mkdirSync, existsSync, readdirSync } from "fs";
 import { join, dirname } from "path";
@@ -166,10 +173,30 @@ function installPlaywrightBrowsers(): void {
 
 // Handle --install / --install-requirements: install deps and exit (no server start)
 if (args.installRequirements) {
+  const skillDir = join(__dirname, "..");
+
+  if (args.global && args.clean) {
+    // --install --global --clean: remove global deps
+    cleanGlobalDeps();
+    process.exit(0);
+  }
+
+  if (args.global) {
+    // --install --global: install to shared system location
+    console.log("Installing dependencies globally...");
+    installGlobalDeps(skillDir);
+
+    // Install Playwright browsers
+    installPlaywrightBrowsers();
+
+    console.log("\nGlobal installation complete.");
+    process.exit(0);
+  }
+
+  // Default: local install
   console.log("Installing requirements...");
 
   // Install npm dependencies using npm ci
-  const skillDir = join(__dirname, "..");
   console.log("Installing npm dependencies with npm ci...");
   execSync("npm ci", { cwd: skillDir, stdio: "inherit" });
   console.log("npm dependencies installed successfully.");
@@ -188,8 +215,28 @@ if (args.installRequirements) {
   process.exit(0);
 }
 
-// Auto-install npm dependencies if node_modules is missing
-ensureDependenciesInstalled(join(__dirname, ".."));
+// Resolve dependency source: local > global > auto-install
+const skillDir = join(__dirname, "..");
+const depSource = resolveDepSource(skillDir);
+
+if (depSource === "global") {
+  const globalNodePath = getGlobalNodePath();
+  // Prepend to NODE_PATH so global deps are found by require/import
+  process.env.NODE_PATH =
+    globalNodePath + (process.env.NODE_PATH ? `:${process.env.NODE_PATH}` : "");
+  console.log(`Using global dependencies from ${globalNodePath}`);
+
+  // Check version coherence
+  const coherenceWarning = checkVersionCoherence(skillDir);
+  if (coherenceWarning) {
+    console.warn(`Warning: ${coherenceWarning}`);
+  }
+} else if (depSource === "local") {
+  // Local node_modules found, nothing to do
+} else {
+  // Neither local nor global — auto-install locally
+  ensureDependenciesInstalled(skillDir);
+}
 
 // Resolve final config: CLI args > env vars > defaults
 const config = resolveConfig(args);

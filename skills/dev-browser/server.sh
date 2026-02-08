@@ -17,9 +17,21 @@ for arg in "$@"; do
   esac
 done
 
+# Resolve global deps directory (env override or default)
+GLOBAL_DEPS_DIR="${DEV_BROWSER_GLOBAL_DEPS_PATH:-$HOME/.dev-browser-skill/global-deps}"
+GLOBAL_DEPS="$GLOBAL_DEPS_DIR/node_modules"
+
 if [ "$SKIP_INSTALL" = false ]; then
-  # Auto-install dependencies if node_modules is missing
-  if [ ! -d "$SCRIPT_DIR/node_modules" ]; then
+  if [ "$DEV_BROWSER_GLOBAL_DEPS" = "true" ] && [ -d "$GLOBAL_DEPS" ]; then
+    # Force global deps via env var
+    export NODE_PATH="$GLOBAL_DEPS${NODE_PATH:+:$NODE_PATH}"
+    echo "Using global dependencies from $GLOBAL_DEPS"
+  elif [ ! -d "$SCRIPT_DIR/node_modules" ] && [ -d "$GLOBAL_DEPS" ]; then
+    # No local node_modules, but global deps available
+    export NODE_PATH="$GLOBAL_DEPS${NODE_PATH:+:$NODE_PATH}"
+    echo "Using global dependencies from $GLOBAL_DEPS"
+  elif [ ! -d "$SCRIPT_DIR/node_modules" ]; then
+    # No local or global deps — auto-install locally
     echo "Dependencies not found. Installing with npm ci..."
     npm ci --silent
   fi

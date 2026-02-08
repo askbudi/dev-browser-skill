@@ -25,6 +25,8 @@ function defaultArgs(overrides: Partial<ParsedArgs> = {}): ParsedArgs {
     stop: undefined,
     stopAll: false,
     installRequirements: false,
+    global: false,
+    clean: false,
     ...overrides,
   };
 }
@@ -60,6 +62,8 @@ describe("parseArgs", () => {
       stop: undefined,
       stopAll: false,
       installRequirements: false,
+      global: false,
+      clean: false,
     });
   });
 
@@ -193,6 +197,29 @@ describe("parseArgs", () => {
   it("--install defaults to false", () => {
     const result = parseArgs([]);
     expect(result.installRequirements).toBe(false);
+  });
+
+  it("parses --global flag", () => {
+    const result = parseArgs(["--install", "--global"]);
+    expect(result.installRequirements).toBe(true);
+    expect(result.global).toBe(true);
+  });
+
+  it("parses --clean flag", () => {
+    const result = parseArgs(["--install", "--global", "--clean"]);
+    expect(result.installRequirements).toBe(true);
+    expect(result.global).toBe(true);
+    expect(result.clean).toBe(true);
+  });
+
+  it("--global defaults to false", () => {
+    const result = parseArgs([]);
+    expect(result.global).toBe(false);
+  });
+
+  it("--clean defaults to false", () => {
+    const result = parseArgs([]);
+    expect(result.clean).toBe(false);
   });
 });
 
@@ -354,6 +381,15 @@ describe("printHelp", () => {
     expect(stdoutSpy).toHaveBeenCalledWith(expect.stringContaining("ENVIRONMENT VARIABLES"));
     expect(stdoutSpy).toHaveBeenCalledWith(expect.stringContaining("DEV_BROWSER_DISABLE_HEADFUL"));
     expect(stdoutSpy).toHaveBeenCalledWith(expect.stringContaining("DEV_BROWSER_LOG_PATH"));
+    stdoutSpy.mockRestore();
+  });
+
+  it("includes --global and global deps env vars in help text", () => {
+    const stdoutSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+    printHelp();
+    expect(stdoutSpy).toHaveBeenCalledWith(expect.stringContaining("--global"));
+    expect(stdoutSpy).toHaveBeenCalledWith(expect.stringContaining("DEV_BROWSER_GLOBAL_DEPS"));
+    expect(stdoutSpy).toHaveBeenCalledWith(expect.stringContaining("DEV_BROWSER_GLOBAL_DEPS_PATH"));
     stdoutSpy.mockRestore();
   });
 });

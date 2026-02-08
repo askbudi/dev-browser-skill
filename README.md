@@ -57,31 +57,35 @@ EOF
 
 ## CLI Flags
 
-| Flag                     | Description                                          |
-| ------------------------ | ---------------------------------------------------- |
-| `--help`, `-h`           | Show help and exit                                   |
-| `--headless`             | Headless mode (default)                              |
-| `--headful`              | Visible browser window                               |
-| `--port <n>`             | HTTP API port (default: 9222, auto-selects if busy)  |
-| `--cdp-port <n>`         | Chrome DevTools Protocol port (default: port+1)      |
-| `--profile-dir <path>`   | Browser profile directory                            |
-| `--label <name>`         | Instance label (default: cwd)                        |
-| `--cookies <source>`     | Load cookies (repeatable); key-value, JSON, or @file |
-| `--status`               | List running instances                               |
-| `--stop <port>`          | Stop instance on port                                |
-| `--stop-all`             | Stop all instances                                   |
-| `--install`              | Install Playwright browsers and dependencies, then exit |
+| Flag                         | Description                                          |
+| ---------------------------- | ---------------------------------------------------- |
+| `--help`, `-h`               | Show help and exit                                   |
+| `--headless`                 | Headless mode (default)                              |
+| `--headful`                  | Visible browser window                               |
+| `--port <n>`                 | HTTP API port (default: 9222, auto-selects if busy)  |
+| `--cdp-port <n>`             | Chrome DevTools Protocol port (default: port+1)      |
+| `--profile-dir <path>`       | Browser profile directory                            |
+| `--label <name>`             | Instance label (default: cwd)                        |
+| `--cookies <source>`         | Load cookies (repeatable); key-value, JSON, or @file |
+| `--status`                   | List running instances                               |
+| `--stop <port>`              | Stop instance on port                                |
+| `--stop-all`                 | Stop all instances                                   |
+| `--install`                  | Install dependencies locally and exit                |
+| `--install --global`         | Install deps to shared system location               |
+| `--install --global --clean` | Remove shared global dependencies                    |
 
 Priority: CLI flags > environment variables > defaults.
 
 ## Environment Variables
 
-| Variable                      | Description                                                            |
-| ----------------------------- | ---------------------------------------------------------------------- |
-| `DEV_BROWSER_DISABLE_HEADFUL` | Set to `true` to force headless mode (ignores `--headful` flag)        |
-| `DEV_BROWSER_LOG_PATH`        | File path to redirect all log output (logs are also printed to stdout) |
-| `PORT`                        | HTTP API port (overridden by `--port` flag)                            |
-| `HEADLESS`                    | Browser mode `true`/`false` (overridden by `--headful`/`--headless`)   |
+| Variable                       | Description                                                            |
+| ------------------------------ | ---------------------------------------------------------------------- |
+| `DEV_BROWSER_DISABLE_HEADFUL`  | Set to `true` to force headless mode (ignores `--headful` flag)        |
+| `DEV_BROWSER_LOG_PATH`         | File path to redirect all log output (logs are also printed to stdout) |
+| `DEV_BROWSER_GLOBAL_DEPS`      | Set to `true` to use global deps (skip local node_modules)             |
+| `DEV_BROWSER_GLOBAL_DEPS_PATH` | Custom path for global deps directory                                  |
+| `PORT`                         | HTTP API port (overridden by `--port` flag)                            |
+| `HEADLESS`                     | Browser mode `true`/`false` (overridden by `--headful`/`--headless`)   |
 
 ## Cookie Formats
 
@@ -149,6 +153,29 @@ Requires the [dev-browser Chrome extension](https://github.com/askbudi/dev-brows
 
 Profile directories are locked to prevent concurrent access. Orphaned Chrome processes from crashes are cleaned up automatically on startup.
 
+## Global Dependencies
+
+When using dev-browser-skill across multiple projects, install dependencies once to a shared system location instead of duplicating ~80MB `node_modules/` per project.
+
+```bash
+# Install globally (shared across all projects)
+./skills/dev-browser/server.sh --install --global
+
+# Projects without local node_modules will auto-use global deps
+./skills/dev-browser/server.sh
+
+# Force global deps even when local node_modules exists
+DEV_BROWSER_GLOBAL_DEPS=true ./skills/dev-browser/server.sh
+
+# Custom global deps path
+DEV_BROWSER_GLOBAL_DEPS_PATH=/opt/dev-browser/deps ./skills/dev-browser/server.sh
+
+# Remove global deps
+./skills/dev-browser/server.sh --install --global --clean
+```
+
+Resolution order: local `node_modules/` > global `~/.dev-browser-skill/global-deps/node_modules/` > auto-install locally. Version coherence is checked via lockfile hash — a warning is shown if global deps are out of date.
+
 ## Development
 
 ```bash
@@ -171,6 +198,7 @@ npm run format
 - `skills/dev-browser/src/client.ts` — Client API with ARIA snapshot support
 - `skills/dev-browser/src/cli.ts` — CLI argument parser
 - `skills/dev-browser/src/cookies.ts` — Cookie injection (key-value, JSON, Netscape)
+- `skills/dev-browser/src/global-deps.ts` — Global dependency management (--install --global)
 - `skills/dev-browser/src/instance-registry.ts` — Instance registry for --status/--stop
 - `skills/dev-browser/src/port-selection.ts` — Port auto-selection
 - `skills/dev-browser/src/profile-lock.ts` — Profile directory locking

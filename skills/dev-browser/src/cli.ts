@@ -18,6 +18,8 @@ export interface ParsedArgs {
   stop: string | undefined;
   stopAll: boolean;
   installRequirements: boolean;
+  global: boolean;
+  clean: boolean;
 }
 
 export interface ResolvedConfig {
@@ -47,13 +49,17 @@ OPTIONS:
   --status                Show running server instances and exit
   --stop <port>           Stop the server instance on the given port
   --stop-all              Stop all running server instances
-  --install               Install npm dependencies (npm ci) and Playwright browsers, then exit
+  --install               Install dependencies locally (npm ci) and Playwright browsers, then exit
+  --install --global      Install dependencies to shared system location (~/.dev-browser-skill/global-deps/)
+  --install --global --clean  Remove shared global dependencies
 
 ENVIRONMENT VARIABLES:
-  DEV_BROWSER_DISABLE_HEADFUL=true   Force headless mode (ignores --headful flag)
-  DEV_BROWSER_LOG_PATH=<path>        Redirect all log output to the specified file
-  PORT=<number>                      HTTP API port (overridden by --port flag)
-  HEADLESS=true|false                Browser mode (overridden by --headful/--headless flags)
+  DEV_BROWSER_DISABLE_HEADFUL=true         Force headless mode (ignores --headful flag)
+  DEV_BROWSER_LOG_PATH=<path>              Redirect all log output to the specified file
+  DEV_BROWSER_GLOBAL_DEPS=true             Use global deps (skip local node_modules)
+  DEV_BROWSER_GLOBAL_DEPS_PATH=<path>      Custom path for global deps directory
+  PORT=<number>                            HTTP API port (overridden by --port flag)
+  HEADLESS=true|false                      Browser mode (overridden by --headful/--headless flags)
 
 COOKIES:
   --cookies @cookies.json                                      Load from JSON file
@@ -66,7 +72,9 @@ EXAMPLES:
   ./server.sh --headful --port 8080    Start visible browser on port 8080
   ./server.sh --status                 List all running server instances
   ./server.sh --stop 9222              Stop server on port 9222
-  ./server.sh --install               Install npm deps and Playwright browsers, then exit
+  ./server.sh --install               Install deps locally and exit
+  ./server.sh --install --global      Install deps to shared system location
+  ./server.sh --install --global --clean  Remove shared global deps
 `;
 
 const KNOWN_FLAGS = new Set([
@@ -84,6 +92,8 @@ const KNOWN_FLAGS = new Set([
   "--stop-all",
   "--install",
   "--install-requirements",
+  "--global",
+  "--clean",
 ]);
 
 const FLAGS_WITH_VALUES = new Set([
@@ -113,6 +123,8 @@ export function parseArgs(argv: string[]): ParsedArgs {
     stop: undefined,
     stopAll: false,
     installRequirements: false,
+    global: false,
+    clean: false,
   };
 
   let i = 0;
@@ -190,6 +202,12 @@ export function parseArgs(argv: string[]): ParsedArgs {
       case "--install":
       case "--install-requirements":
         args.installRequirements = true;
+        break;
+      case "--global":
+        args.global = true;
+        break;
+      case "--clean":
+        args.clean = true;
         break;
     }
 
